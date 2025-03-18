@@ -4,3 +4,14 @@
 *.ptx
 *.cubin
 *.fatbin
+
+
+*.vsidx
+*.suo
+*.db*
+*.opendb
+*.ipch
+DocumentLayout.backup.json
+DocumentLayout.json
+
+x64/
