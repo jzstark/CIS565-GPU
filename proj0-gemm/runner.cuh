@@ -10,6 +10,9 @@
 #include <time.h>
 //#include <unistd.h>
 
+#define CEIL_DIV(x, y) (((x) + (y) - 1) / (y))
+
+
 void cudaCheck(cudaError_t error, const char* file,
     int line); // CUDA error check
 void CudaDeviceInfo();    // print CUDA information
