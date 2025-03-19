@@ -5,6 +5,28 @@
 #include <fstream>
 #include <iomanip>
 
+#define CEIL_DIV(x, y) (((x) + (y) - 1) / (y))
+
+#ifdef _WIN32
+
+// Implement gettimeofday() for Windows
+int gettimeofday(struct timeval* tp, void* tzp) {
+    (void)tzp;  // Ignore timezone
+
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);  // Get system time
+
+    // Convert FILETIME (100ns intervals since 1601) to Unix epoch (1970)
+    uint64_t tt = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+    tt /= 10;  // Convert to microseconds
+    tt -= 11644473600000000ULL;  // Convert to Unix epoch
+
+    tp->tv_sec = (long)(tt / 1000000);
+    tp->tv_usec = (long)(tt % 1000000);
+    return 0;
+}
+#endif
+
 float get_sec() {
     struct timeval time;
     gettimeofday(&time, NULL);
@@ -153,9 +175,10 @@ void run_sgemm_naive(int M, int N, int K, float alpha, float* A, float* B,
     float beta, float* C) {
     dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
     dim3 blockDim(32, 32);
-    sgemm_naive << <gridDim, blockDim >> > (M, N, K, alpha, A, B, beta, C);
+    sgemm_naive <<< gridDim, blockDim >>> (M, N, K, alpha, A, B, beta, C);
 }
 
+/*
 void run_sgemm_coalesce(int M, int N, int K, float alpha, float* A, float* B,
     float beta, float* C) {
     dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
@@ -505,6 +528,7 @@ void runSgemmDoubleBuffering2(int M, int N, int K, float alpha, float* A,
         << <gridDim, blockDim >> > (M, N, K, alpha, A, B, beta, C);
 }
 
+*/
 void run_kernel(int kernel_num, int M, int N, int K, float alpha, float* A,
     float* B, float beta, float* C, cublasHandle_t handle) {
     switch (kernel_num) {
@@ -514,7 +538,7 @@ void run_kernel(int kernel_num, int M, int N, int K, float alpha, float* A,
     case 1:
         run_sgemm_naive(M, N, K, alpha, A, B, beta, C);
         break;
-    case 2:
+    /* case 2:
         run_sgemm_coalesce(M, N, K, alpha, A, B, beta, C);
         break;
     case 3:
@@ -546,7 +570,7 @@ void run_kernel(int kernel_num, int M, int N, int K, float alpha, float* A,
         break;
     case 12:
         runSgemmDoubleBuffering2(M, N, K, alpha, A, B, beta, C);
-        break;
+        break; */
     default:
         throw std::invalid_argument("Unknown kernel number");
     }

@@ -3,8 +3,10 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
-#include <runner.cuh>
+#include "runner.cuh"
 #include <vector>
+#include <string>
+
 
 #define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
 
