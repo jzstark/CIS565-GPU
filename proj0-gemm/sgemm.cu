@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     // get kernel number
     // int kernel_num = std::stoi(argv[1]);
 
-    int kernel_num = 2;
+    int kernel_num = 1;
 
     if (kernel_num < 0 || kernel_num > 12) {
         std::cerr << "Please enter a valid kernel number (0-12)" << std::endl;
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     printf("Running kernel %d on device %d.\n", kernel_num, deviceIdx); 
      
     // print some device info
-    // CudaDeviceInfo();
+    CudaDeviceInfo();
 
     // Declare the handle, create the handle, cublasCreate will return a value of
     // type cublasStatus_t to determine whether the handle was created
@@ -147,7 +147,8 @@ int main(int argc, char** argv) {
         cudaEventElapsedTime(&elapsed_time, beg, end);
         elapsed_time /= 1000.; // Convert to seconds
 
-        long flops = 2 * m * n * k;
+        long long flops = 2LL * m * n * k; //LL is important.
+        
         printf(
             "Average elapsed time: (%7.6f) s, performance: (%7.1f) GFLOPS. size: "
             "(%ld).\n",
