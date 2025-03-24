@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     // get kernel number
     // int kernel_num = std::stoi(argv[1]);
 
-    int kernel_num = 1;
+    int kernel_num = 3;
 
     if (kernel_num < 0 || kernel_num > 12) {
         std::cerr << "Please enter a valid kernel number (0-12)" << std::endl;
