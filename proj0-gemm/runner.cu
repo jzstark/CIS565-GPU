@@ -201,19 +201,19 @@ void run_sgemm_shared_mem_block(int M, int N, int K, float alpha, float* A,
         << <gridDim, blockDim >> > (M, N, K, alpha, A, B, beta, C);
 }
 
-/*
+
 void runSgemm1DBlocktiling(int M, int N, int K, float alpha, float* A, float* B,
     float beta, float* C) {
-    const uint BM = 64;
-    const uint BN = 64;
-    const uint BK = 8;
-    const uint TM = 8;
+    const uint32_t BM = 64;
+    const uint32_t BN = 64;
+    const uint32_t BK = 8;
+    const uint32_t TM = 8;
     dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
     dim3 blockDim((BM * BN) / TM);
-    sgemm1DBlocktiling<BM, BN, BK, TM>
-        << <gridDim, blockDim >> > (M, N, K, alpha, A, B, beta, C);
+    sgemm1DBlocktiling<BM, BN, BK, TM> <<< gridDim, blockDim >>>(M, N, K, alpha, A, B, beta, C);
 }
 
+/*
 void runSgemm2DBlocktiling(int M, int N, int K, float alpha, float* A, float* B,
     float beta, float* C) {
     const uint BK = 8;
@@ -354,7 +354,7 @@ void runSgemmAutotuned(int M, int N, int K, float alpha, float* A, float* B,
     dim3 gridDim(CEIL_DIV(N, K9_BN), CEIL_DIV(M, K9_BM));
     sgemmAutotuned<K9_BM, K9_BN, K9_BK, K9_TM, K9_TN>
         << <gridDim, blockDim >> > (M, N, K, alpha, A, B, beta, C);
-}
+} */
 
 void runSgemmWarptiling(int M, int N, int K, float alpha, float* A, float* B,
     float beta, float* C) {
@@ -369,30 +369,29 @@ void runSgemmWarptiling(int M, int N, int K, float alpha, float* A, float* B,
     // const uint K10_TN = 4;
     // const uint K10_TM = 4;
     // Settings for A6000
-    const uint K10_NUM_THREADS = 128;
-    const uint K10_BN = 128;
-    const uint K10_BM = 128;
-    const uint K10_BK = 16;
-    const uint K10_WN = 64;
-    const uint K10_WM = 64;
-    const uint K10_WNITER = 4;
-    const uint K10_TN = 4;
-    const uint K10_TM = 8;
+    const uint32_t K10_NUM_THREADS = 128;
+    const uint32_t K10_BN = 128;
+    const uint32_t K10_BM = 128;
+    const uint32_t K10_BK = 16;
+    const uint32_t K10_WN = 64;
+    const uint32_t K10_WM = 64;
+    const uint32_t K10_WNITER = 4;
+    const uint32_t K10_TN = 4;
+    const uint32_t K10_TM = 8;
     dim3 blockDim(K10_NUM_THREADS);
 
-    constexpr uint NUM_WARPS = K10_NUM_THREADS / 32;
+    constexpr uint32_t NUM_WARPS = K10_NUM_THREADS / 32;
 
     // warptile in threadblocktile
-    static_assert((K10_BN % K10_WN == 0) and (K10_BM % K10_WM == 0));
-    static_assert((K10_BN / K10_WN) * (K10_BM / K10_WM) == NUM_WARPS);
+    static_assert((K10_BN % K10_WN == 0) && (K10_BM % K10_WM == 0), "warptile in threadblocktile 1");
+    static_assert((K10_BN / K10_WN) * (K10_BM / K10_WM) == NUM_WARPS, "warptile in threadblocktile 2");
 
     // threads in warpsubtile
-    static_assert((K10_WM * K10_WN) % (WARPSIZE * K10_TM * K10_TN * K10_WNITER) ==
-        0);
-    constexpr uint K10_WMITER =
+    static_assert((K10_WM * K10_WN) % (WARPSIZE * K10_TM * K10_TN * K10_WNITER) == 0, "threads in warpsubtile");
+    constexpr uint32_t K10_WMITER =
         (K10_WM * K10_WN) / (32 * K10_TM * K10_TN * K10_WNITER);
     // warpsubtile in warptile
-    static_assert((K10_WM % K10_WMITER == 0) and (K10_WN % K10_WNITER == 0));
+    static_assert((K10_WM % K10_WMITER == 0) && (K10_WN % K10_WNITER == 0), "warpsubtile in warptile");
 
     static_assert((K10_NUM_THREADS * 4) % K10_BK == 0,
         "NUM_THREADS*4 must be multiple of K9_BK to avoid quantization "
@@ -417,6 +416,7 @@ void runSgemmWarptiling(int M, int N, int K, float alpha, float* A, float* B,
         << <gridDim, blockDim >> > (M, N, K, alpha, A, B, beta, C);
 }
 
+/*
 void runSgemmDoubleBuffering(int M, int N, int K, float alpha, float* A,
     float* B, float beta, float* C) {
     // Settings for A100
@@ -545,10 +545,10 @@ void run_kernel(int kernel_num, int M, int N, int K, float alpha, float* A,
     case 3:
         run_sgemm_shared_mem_block(M, N, K, alpha, A, B, beta, C);
         break;
-    /* case 4:
+    case 4:
         runSgemm1DBlocktiling(M, N, K, alpha, A, B, beta, C);
         break;
-    case 5:
+    /* case 5:
         runSgemm2DBlocktiling(M, N, K, alpha, A, B, beta, C);
         break;
     case 6:
@@ -562,11 +562,11 @@ void run_kernel(int kernel_num, int M, int N, int K, float alpha, float* A,
         break;
     case 9:
         runSgemmAutotuned(M, N, K, alpha, A, B, beta, C);
-        break;
+        break; */
     case 10:
         runSgemmWarptiling(M, N, K, alpha, A, B, beta, C);
         break;
-    case 11:
+    /* case 11:
         runSgemmDoubleBuffering(M, N, K, alpha, A, B, beta, C);
         break;
     case 12:
