@@ -18,4 +18,6 @@ namespace Boids {
 
     void endSimulation();
     void unitTest();
+
+    static int numObj;
 }
