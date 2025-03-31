@@ -95,8 +95,6 @@ float gridInverseCellWidth;
 glm::vec3 gridMinimum;
 
 
-int flag = 100;
-
 /******************
 * initSimulation *
 ******************/
@@ -683,31 +681,6 @@ void Boids::stepSimulationScatteredGrid(float dt) {
     thrust::device_ptr<int> dev_thrust_particleGridIndices(dev_particleGridIndices); //key
 	thrust::device_ptr<int> dev_thrust_particleArrayIndices(dev_particleArrayIndices); //value
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
-    
-	// print the content of dev_particleArrayIndices
-
-    if (flag == 0) {
-        int* particleArrayIndices = new int[numObjects];
-	    int* particleGridIndices = new int[numObjects];
-	    cudaMemcpy(particleArrayIndices, dev_particleArrayIndices, numObjects * sizeof(int), cudaMemcpyDeviceToHost);
-	    cudaMemcpy(particleGridIndices,  dev_particleGridIndices,  numObjects * sizeof(int), cudaMemcpyDeviceToHost);
-
-		std::cout << numObjects << " particleArrayIndices = [";
-	    for (int i = 0; i < numObjects; i++) {
-		    std::cout << particleArrayIndices[i] << " ";
-	    }
-		std::cout << "]" << std::endl;
-
-		std::cout << "particleGridIndices = [";
-	    for (int i = 0; i < numObjects; i++) {
-		    std::cout << particleGridIndices[i] << " ";
-	    }
-		std::cout << "]" << std::endl;
-	    delete[] particleArrayIndices;
-	    delete[] particleGridIndices;
-
-        flag = 1;
-	}
 
     // - Naively unroll the loop for finding the start and end indices of each
     //   cell's data pointers in the array of boid indices
@@ -718,31 +691,6 @@ void Boids::stepSimulationScatteredGrid(float dt) {
     //TODO: change it to sequantial algorithm for now. 
     //kernIdentifyCellStartEnd <<<fullBlocksPerGrid, blockSize >>> (gridCellCount, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
     kernIdentifyCellStartEnd<<<1, 1>>>(numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
-
-    //print gridCellEndIndices
-    if (flag == 1) {
-        int* gridCellEndIndices_host = new int[gridCellCount];
-        cudaMemcpy(gridCellEndIndices_host, dev_gridCellEndIndices, gridCellCount * sizeof(int), cudaMemcpyDeviceToHost);
-        std::cout << gridCellCount << " gridCellEndIndices[" ;
-        for (int i = 0; i < gridCellCount; i++) {
-            std::cout << gridCellEndIndices_host[i] << " ";
-        }
-        std::cout << "] = " << std::endl;
-
-        //print gridCellStartIndices
-        int* gridCellStartIndices_host = new int[gridCellCount];
-        cudaMemcpy(gridCellStartIndices_host, dev_gridCellStartIndices, gridCellCount * sizeof(int), cudaMemcpyDeviceToHost);
-        std::cout << "gridCellStartIndices[";
-        for (int i = 0; i < gridCellCount; i++) {
-            std::cout << gridCellStartIndices_host[i] << " ";
-        }
-        std::cout << "] = " << std::endl;
-
-        delete[] gridCellEndIndices_host;
-        delete[] gridCellStartIndices_host;
-        
-        flag = 2;
-    }
 
     // - Perform velocity updates using neighbor search
 	kernUpdateVelNeighborSearchScattered <<< fullBlocksPerGrid, blockSize >>> (numObjects, gridSideCount, gridMinimum,
