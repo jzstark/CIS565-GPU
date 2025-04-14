@@ -64,21 +64,21 @@ namespace StreamCompaction {
                 kern_scan <<< numBlocks, blockSize >> > (n, d_tmp_b, d_tmp_a, d);
 
                 //print odata
-                cudaMemcpy(odata, d_tmp_b, n * sizeof(int), cudaMemcpyDeviceToHost);
+                /* cudaMemcpy(odata, d_tmp_b, n * sizeof(int), cudaMemcpyDeviceToHost);
 
                 printf("d_tmp_b # %d: ", d);
                 for (int i = 0; i < n; i++) {
                     printf("%d ", odata[i]);
                 }
-                printf("\n");
+                printf("\n"); */
                 
                 // swap(d_odata, d_idata)
                 // d_swap = d_tmp_a;
                 // d_tmp_a = d_tmp_b;
                 // d_tmp_b = d_swap;
 
+				//TODO: I think this is very inefficient to copy the whole array back and forth
                 cudaMemcpy(d_tmp_a, d_tmp_b, n * sizeof(int), cudaMemcpyDeviceToDevice);
-
                 //flag += 1;
             }
 
@@ -92,11 +92,11 @@ namespace StreamCompaction {
             cudaMemcpy(odata, d_tmp_b, n * sizeof(int), cudaMemcpyDeviceToHost);
 
             //print odata
-			printf("odata: ");
+			/* printf("odata: ");
             for (int i = 0; i < n; i++) {
 				printf("%d ", odata[i]);
             }
-			printf("\n");
+			printf("\n"); */
 
 			// Free gpu memory
 			//cudaFree(d_idata);
