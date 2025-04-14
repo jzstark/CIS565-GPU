@@ -30,7 +30,7 @@ inline int ilog2ceil(int x) {
     return x == 1 ? 0 : ilog2(x - 1) + 1;
 }
 
-int nextPow2(int n) {
+inline int nextPow2(int n) {
     n--;
     n |= n >> 1;
     n |= n >> 2;
