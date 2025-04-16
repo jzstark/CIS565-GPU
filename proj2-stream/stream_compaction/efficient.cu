@@ -17,6 +17,7 @@ namespace StreamCompaction {
 			int index = blockIdx.x * blockDim.x + threadIdx.x;
 			if (index >= n || index < 0) return;
 
+			odata[index] = idata[index];
             if (index % int(pow(2, d+1)) == 0) {
                 //printf("(%d) index is %d: %d -- %d \n", d, index, index + int(pow(2, d + 1)) - 1, index + int(pow(2, d)) - 1);
                 odata[index + int(pow(2, d + 1)) - 1] = idata[index + int(pow(2, d + 1)) - 1] + idata[index + int(pow(2, d)) - 1];
@@ -26,6 +27,7 @@ namespace StreamCompaction {
         __global__ void kern_scan_down(int n, int* odata, const int* idata, int d) {
             int index = blockIdx.x * blockDim.x + threadIdx.x;
             if (index >= n || index < 0) return;
+            odata[index] = idata[index];
 
             int i, j; 
             if (index % int(pow(2,d+1)) == 0) {
@@ -79,27 +81,28 @@ namespace StreamCompaction {
 
             for (int d = 0; d <= D - 1; d++) {
                 kern_scan_up <<< numBlocks, blockSize >>> (n_power, d_tmp_b, d_tmp_a, d);
-                cudaMemcpy(d_tmp_a, d_tmp_b, n_power * sizeof(int), cudaMemcpyDeviceToDevice);
+                // cudaMemcpy(d_tmp_a, d_tmp_b, n_power * sizeof(int), cudaMemcpyDeviceToDevice);
+                d_swap = d_tmp_a;
+                d_tmp_a = d_tmp_b;
+                d_tmp_b = d_swap;
             }
 
 			setElement <<< 1, 1 >>> (d_tmp_a, n_power - 1, 0);
 
             for (int d = D - 1; d >= 0; d--) {
                 kern_scan_down <<< numBlocks, blockSize >> > (n_power, d_tmp_b, d_tmp_a, d);
-                cudaMemcpy(d_tmp_a, d_tmp_b, n_power * sizeof(int), cudaMemcpyDeviceToDevice);
-                /* cudaMemcpy(odata, d_tmp_b, n_power * sizeof(int), cudaMemcpyDeviceToHost);
-                printf("d_tmp_b:# %d", d);
-                for (int i = 0; i < n_power; i++) {
-                    printf("%d ", odata[i]);
-                }
-                printf("\n"); */
+                // cudaMemcpy(d_tmp_a, d_tmp_b, n_power * sizeof(int), cudaMemcpyDeviceToDevice);
+
+                d_swap = d_tmp_a;
+                d_tmp_a = d_tmp_b;
+                d_tmp_b = d_swap;
             }
 
             if (n_power == n) {
-                cudaMemcpy(odata, d_tmp_b + 1, (n - 1) * sizeof(int), cudaMemcpyDeviceToHost);
+                cudaMemcpy(odata, d_tmp_a + 1, (n - 1) * sizeof(int), cudaMemcpyDeviceToHost);
                 odata[n - 1] = odata[n - 2];
             } else {
-                cudaMemcpy(odata, d_tmp_b + 1, n * sizeof(int), cudaMemcpyDeviceToHost);
+                cudaMemcpy(odata, d_tmp_a + 1, n * sizeof(int), cudaMemcpyDeviceToHost);
             }
 
             // Free gpu memory

@@ -23,6 +23,9 @@ namespace StreamCompaction {
 
             if (index >= pow(2, d-1)) {
                 odata[index] = idata[index] + idata[index - int(pow(2, d - 1))];
+			}
+            else {
+                odata[index] = idata[index];
             }
         }
 
@@ -73,12 +76,12 @@ namespace StreamCompaction {
                 printf("\n"); */
                 
                 // swap(d_odata, d_idata)
-                // d_swap = d_tmp_a;
-                // d_tmp_a = d_tmp_b;
-                // d_tmp_b = d_swap;
+                d_swap = d_tmp_a;
+                d_tmp_a = d_tmp_b;
+                d_tmp_b = d_swap;
 
 				//TODO: I think this is very inefficient to copy the whole array back and forth
-                cudaMemcpy(d_tmp_a, d_tmp_b, n * sizeof(int), cudaMemcpyDeviceToDevice);
+                // cudaMemcpy(d_tmp_a, d_tmp_b, n * sizeof(int), cudaMemcpyDeviceToDevice);
                 //flag += 1;
             }
 
@@ -89,7 +92,7 @@ namespace StreamCompaction {
                 cudaMemcpy(odata, d_tmp_a, n * sizeof(int), cudaMemcpyDeviceToHost);
             } */
 
-            cudaMemcpy(odata, d_tmp_b, n * sizeof(int), cudaMemcpyDeviceToHost);
+            cudaMemcpy(odata, d_tmp_a, n * sizeof(int), cudaMemcpyDeviceToHost);
 
             //print odata
 			/* printf("odata: ");
