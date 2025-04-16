@@ -13,7 +13,13 @@
 #include <stream_compaction/thrust.h>
 #include "testing_helpers.hpp"
 
+ //TODO: we need at least around 10^5 to show that the CPU method is slower than the GPU;
+// But current implementation does not allow such size. 
+// Follow the method in: https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda
+// Much more is required: workload dividel, shared memeory, put more computation on one thread, etc. 
+
 const int SIZE = 1 << 8; // feel free to change the size of array
+
 const int NPOT = SIZE - 3; // Non-Power-Of-Two
 int *a = new int[SIZE];
 int *b = new int[SIZE];
