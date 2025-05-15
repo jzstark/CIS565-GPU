@@ -11,6 +11,7 @@ EMITTANCE   5
 // Diffuse white
 MATERIAL 1
 RGB         .98 .98 .98
+//RGB         .98 .7 .1
 SPECEX      0
 SPECRGB     0 0 0
 REFL        0

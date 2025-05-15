@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include "intersections.h"
+#include <glm/glm.hpp>
 
 // CHECKITOUT
 /**
@@ -11,6 +12,7 @@ __host__ __device__
 glm::vec3 calculateRandomDirectionInHemisphere(
         glm::vec3 normal, thrust::default_random_engine &rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
+
 
     float up = sqrt(u01(rng)); // cos(theta)
     float over = sqrt(1 - up * up); // sin(theta)
@@ -76,4 +78,81 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    
+
+    thrust::uniform_real_distribution<float> u01(0, 1);
+
+    // Offset the origin to avoid self-intersection
+    pathSegment.ray.origin = intersect + 0.001f * normal;
+
+    // Color
+    //float lightTerm = glm::dot(normal, glm::vec3(0.0f, 1.0f, 0.0f));
+    //pathSegment.color *= (m.color * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * m.color) * 0.7f;
+    //pathSegment.color *= u01(rng);
+
+    float cosine_weight = glm::dot(pathSegment.ray.direction, normal);
+
+    // If the material is emissive, the path should terminate
+    if (m.emittance > 0.0f) {
+        pathSegment.remainingBounces = 0;
+        return;
+    }
+
+    float probDiffuse = 1.0f;
+    float probSpecular = 0.0f;
+    float probRefractive = 0.0f;
+
+    if (m.hasReflective > 0.0f) {
+        probSpecular = 0.5f;
+        probDiffuse = 0.5f;
+    }
+    if (m.hasRefractive > 0.0f) {
+        probRefractive = 0.5f;
+        probDiffuse = 0.5f;
+    }
+
+    float xi = u01(rng);
+
+    // Specular reflection  反射
+    if (m.hasReflective > 0.0f && xi < probSpecular) {
+        glm::vec3 incident = glm::normalize(pathSegment.ray.direction);
+        glm::vec3 reflected = glm::reflect(incident, normal);
+        pathSegment.ray.direction = reflected;
+
+        pathSegment.color *= m.specular.color / probSpecular;
+    }
+    // Refractive (glass) 折射
+    else if (m.hasRefractive > 0.0f && xi < probRefractive) {
+        glm::vec3 incident = glm::normalize(pathSegment.ray.direction);
+        float eta = m.indexOfRefraction;
+        float cosi = glm::dot(incident, normal);
+        float etai = 1.0f, etat = eta;
+        glm::vec3 n = normal;
+        if (cosi > 0) {
+            n = -normal;
+            etai = eta;
+            etat = 1.0f;
+        }
+        float etaRatio = etai / etat;
+        float k = 1.0f - etaRatio * etaRatio * (1.0f - cosi * cosi);
+        if (k < 0.0f) {
+            // Total internal reflection
+            pathSegment.ray.direction = glm::reflect(incident, normal);
+        }
+        else {
+            pathSegment.ray.direction = glm::normalize(etaRatio * incident + (etaRatio * cosi - sqrtf(k)) * n);
+        }
+        pathSegment.color *= m.color / probRefractive;
+    }
+    // Diffuse -- 散射
+    else {
+        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+        pathSegment.color *= m.color / probDiffuse;
+    }
+    
+    // pathSegment.color /= PI;
+
+    // pathSegment.color *= cosine_weight;
+
+    pathSegment.remainingBounces--;
 }
