@@ -146,7 +146,7 @@ void scatterRay(
     }
     // Diffuse -- 散射
     else {
-        float f_r = 1.0f / PI;
+		float f_r = 1.0f; // / PI; -- if not adding the Pi part, the generated figure will look quite nice, not dark
         pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
         pathSegment.color *= m.color * f_r / probDiffuse;
     }
