@@ -146,11 +146,10 @@ void scatterRay(
     }
     // Diffuse -- 散射
     else {
+        float f_r = 1.0f / PI;
         pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
-        pathSegment.color *= m.color / probDiffuse;
+        pathSegment.color *= m.color * f_r / probDiffuse;
     }
-    
-    // pathSegment.color /= PI;
 
     // pathSegment.color *= cosine_weight;
 

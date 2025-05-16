@@ -4,6 +4,9 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/sort.h>
+#include <thrust/device_ptr.h>
+#include <thrust/partition.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -43,6 +46,14 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
 	int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
 	return thrust::default_random_engine(h);
 }
+
+struct isNotTerminatedZip {
+	__host__ __device__
+		bool operator()(const thrust::tuple<PathSegment, ShadeableIntersection>& t) const {
+		return thrust::get<0>(t).remainingBounces > 0;
+	}
+};
+
 
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
@@ -253,8 +264,9 @@ __global__ void shadeFakeMaterial(
 			// If the material indicates that the object was a light, "light" the ray
 			if (material.emittance > 0.0f) {
 				pathSegments[idx].color *= (materialColor * material.emittance);
+				pathSegments[idx].remainingBounces = 0; // terminate the path
 				// pathSegments[idx].color = glm::vec3(0.8f, 0.1f, 0.27f);
-			}
+			}  
 			// Otherwise, do some pseudo-lighting computation. This is actually more
 			// like what you would expect from shading in a rasterizer like OpenGL.
 			// TODO: replace this! you should be able to start with basically a one-liner
@@ -277,6 +289,7 @@ __global__ void shadeFakeMaterial(
 		else {
 			// pathSegments[idx].color = glm::vec3(0.15f, 0.27f, 0.26f); // deep green 
 			pathSegments[idx].color = glm::vec3(0.0f);
+			pathSegments[idx].remainingBounces = 0; // terminate the path
 		}
 	}
 }
@@ -299,6 +312,7 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
  */
 void pathtrace(uchar4* pbo, int frame, int iter) {
 	const int traceDepth = hst_scene->state.traceDepth;
+	printf("depth: %d\n", traceDepth);
 	const Camera& cam = hst_scene->state.camera;
 	const int pixelcount = cam.resolution.x * cam.resolution.y;
 
@@ -348,6 +362,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
+	int total_num_paths = num_paths;
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
@@ -382,6 +397,17 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	    // TODO: compare between directly shading the path segments and shading
 	    // path segments that have been reshuffled to be contiguous in memory.
 
+		// 1. Create a device pointer to the material IDs
+		/* thrust::device_ptr<int> materialIds = thrust::device_pointer_cast(
+			thrust::raw_pointer_cast(&dev_intersections[0].materialId));
+		// 2. Sort both dev_intersections and dev_paths by materialId
+		thrust::device_ptr<ShadeableIntersection> intersections_ptr = thrust::device_pointer_cast(dev_intersections);
+		thrust::device_ptr<PathSegment> paths_ptr = thrust::device_pointer_cast(dev_paths);
+		thrust::sort_by_key(
+			materialIds, materialIds + num_paths, // keys
+			thrust::make_zip_iterator(thrust::make_tuple(intersections_ptr, paths_ptr)) // values
+		); */
+
 		shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
 			num_paths,
@@ -389,10 +415,32 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 			dev_paths,
 			dev_materials
 			);
-		if (count > 2) {
+
+		checkCUDAError("shade");
+		cudaDeviceSynchronize();
+
+
+		thrust::device_ptr<PathSegment> paths_begin = thrust::device_pointer_cast(dev_paths);
+		thrust::device_ptr<PathSegment> paths_end = paths_begin + num_paths;
+		thrust::device_ptr<ShadeableIntersection> intersections_begin = thrust::device_pointer_cast(dev_intersections);
+
+		auto new_end = thrust::stable_partition(
+			thrust::make_zip_iterator(thrust::make_tuple(paths_begin, intersections_begin)),
+			thrust::make_zip_iterator(thrust::make_tuple(paths_end, intersections_begin + num_paths)),
+			isNotTerminatedZip()
+		);
+		num_paths = thrust::get<0>(new_end.get_iterator_tuple()) - paths_begin; 
+		printf("num_paths: %d\n", num_paths);
+
+		
+		if (num_paths <= 0) {
 			iterationComplete = true; // TODO: should be based off stream compaction results.
 		}
-		count += 1;
+
+		/* if (count > 2) {
+			iterationComplete = true;
+		}  
+		count += 1; */
 
 		if (guiData != NULL)
 		{
@@ -402,7 +450,8 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dev_image, dev_paths);
+	printf("total_num_paths: %d\n", total_num_paths);
+	finalGather << <numBlocksPixels, blockSize1d >> > (total_num_paths, dev_image, dev_paths);
 
 	///////////////////////////////////////////////////////////////////////////
 
