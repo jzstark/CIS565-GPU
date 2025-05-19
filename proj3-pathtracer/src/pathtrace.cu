@@ -430,7 +430,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 			isNotTerminatedZip()
 		);
 		num_paths = thrust::get<0>(new_end.get_iterator_tuple()) - paths_begin; 
-		printf("num_paths: %d\n", num_paths);
+		// printf("num_paths: %d\n", num_paths);
 
 		
 		if (num_paths <= 0) {
@@ -450,7 +450,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	printf("total_num_paths: %d\n", total_num_paths);
+	// printf("total_num_paths: %d\n", total_num_paths);
 	finalGather << <numBlocksPixels, blockSize1d >> > (total_num_paths, dev_image, dev_paths);
 
 	///////////////////////////////////////////////////////////////////////////
